@@ -1,0 +1,123 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Link Archiver</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #f4f4f9;
+        color: #333;
+        display: flex;
+        justify-content: center;
+        padding: 2rem 1rem;
+      }
+      .card {
+        background: #ffffff;
+        max-width: 550px;
+        width: 100%;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+      h1 { margin-top: 0; font-size: 1.5rem; }
+      .field { margin-bottom: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
+      label { font-weight: 600; font-size: 0.9rem; }
+      input {
+        padding: 0.75rem;
+        font-size: 1rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button {
+        padding: 0.75rem;
+        font-size: 1rem;
+        font-weight: 600;
+        background: #0066cc;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:disabled { background: #888; cursor: not-allowed; }
+      .status {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        line-height: 1.4;
+      }
+      .hidden { display: none; }
+      .info { background: #e8f4fd; color: #004085; }
+      .success { background: #d4edda; color: #155724; }
+      .error { background: #f8d7da; color: #721c24; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Archive External Link</h1>
+      <form id="archive-form">
+        <div class="field">
+          <label for="url">Target Webpage URL</label>
+          <input type="url" id="url" name="url" placeholder="https://example.com/blog/post" required />
+        </div>
+
+        <div class="field">
+          <label for="passcode">Passcode (Optional)</label>
+          <input type="password" id="passcode" name="passcode" placeholder="Enter ARCHIVE_SECRET if configured" />
+        </div>
+
+        <button type="submit" id="btn">Create Saved Copy</button>
+      </form>
+
+      <div id="status" class="status hidden"></div>
+    </div>
+
+    <script>
+      const form = document.getElementById('archive-form') as HTMLFormElement;
+      const urlInput = document.getElementById('url') as HTMLInputElement;
+      const passInput = document.getElementById('passcode') as HTMLInputElement;
+      const btn = document.getElementById('btn') as HTMLButtonElement;
+      const status = document.getElementById('status') as HTMLDivElement;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        btn.disabled = true;
+        btn.textContent = "Archiving & Committing...";
+        status.className = "status info";
+        status.textContent = "Fetching page, inlining images, and committing to GitHub...";
+
+        try {
+          const res = await fetch('/api/archive-link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: urlInput.value.trim(),
+              passcode: passInput.value.trim()
+            }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            status.className = "status success";
+            status.innerHTML = `
+              <strong>Snapshot Saved!</strong><br />
+              Page location: <a href="${data.path}" target="_blank" rel="noopener">${data.path}</a><br />
+              <small>Netlify will automatically rebuild your site shortly with this new file.</small>
+            `;
+            urlInput.value = '';
+          } else {
+            throw new Error(data.error || 'Failed to archive link');
+          }
+        } catch (err: any) {
+          status.className = "status error";
+          status.textContent = `Error: ${err.message}`;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Create Saved Copy";
+        }
+      });
+    </script>
+  </body>
+</html>
